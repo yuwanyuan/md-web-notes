@@ -5,7 +5,7 @@ import { languages } from '@codemirror/language-data';
 import { EditorView, Decoration, DecorationSet, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 import { RangeSetBuilder } from "@codemirror/state";
-import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { HighlightStyle, syntaxHighlighting, defaultHighlightStyle, indentUnit } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
 
 const hideMarksPlugin = ViewPlugin.fromClass(class {
@@ -30,7 +30,7 @@ const hideMarksPlugin = ViewPlugin.fromClass(class {
     for (let {from, to} of view.visibleRanges) {
       // 1. Collect Highlight decorations (==text==)
       const text = view.state.sliceDoc(from, to);
-      const highlightRegex = /==([^=]+)==/g;
+      const highlightRegex = /==([^=\n]+)==/g;
       let match;
       while ((match = highlightRegex.exec(text)) !== null) {
         const start = from + match.index;
@@ -58,8 +58,16 @@ const hideMarksPlugin = ViewPlugin.fromClass(class {
         from, to,
         enter: (node) => {
           const name = node.name;
-          const isMark = (name.includes("Mark") && name !== "ListMark") || name === "URL" || name === "CodeInfo";
+          // Only hide marks for inline elements, not fenced code blocks
+          const isMark = (name.includes("Mark") && name !== "ListMark" && name !== "QuoteMark") || name === "URL" || name === "CodeInfo";
+          
           if (isMark) {
+            const parent = node.node.parent;
+            // Don't hide triple backticks for fenced code blocks as it's confusing
+            if (parent && parent.name === "FencedCode" && (name === "CodeMark" || name === "CodeInfo")) {
+              return;
+            }
+
             const nodeLine = view.state.doc.lineAt(node.from);
             if (nodeLine.number !== activeLine.number) {
               decos.push({ from: node.from, to: node.to, deco: Decoration.replace({}) });
@@ -70,24 +78,16 @@ const hideMarksPlugin = ViewPlugin.fromClass(class {
     }
 
     // 3. Sort and add to builder
-    decos.sort((a, b) => {
-      if (a.from !== b.from) return a.from - b.from;
-      return a.to - b.to;
-    });
+    decos.sort((a, b) => a.from - b.from || a.to - b.to);
     
-    let lastFrom = -1;
-    let lastTo = -1;
+    let lastPos = -1;
     for (const deco of decos) {
-      // Ensure we don't add overlapping identical ranges or out-of-order ranges
-      if (deco.from > lastFrom || (deco.from === lastFrom && deco.to >= lastTo)) {
-        if (deco.from < deco.to) {
-          try {
-            builder.add(deco.from, deco.to, deco.deco);
-            lastFrom = deco.from;
-            lastTo = deco.to;
-          } catch (e) {
-            console.warn("Failed to add decoration:", e);
-          }
+      if (deco.from >= lastPos && deco.from < deco.to) {
+        try {
+          builder.add(deco.from, deco.to, deco.deco);
+          lastPos = deco.to;
+        } catch (e) {
+          // Skip overlapping or invalid ranges
         }
       }
     }
@@ -99,18 +99,33 @@ const hideMarksPlugin = ViewPlugin.fromClass(class {
 });
 
 const livePreviewHighlighting = HighlightStyle.define([
-  { tag: t.heading1, fontSize: "2.2em", fontWeight: "bold" },
-  { tag: t.heading2, fontSize: "1.8em", fontWeight: "bold" },
-  { tag: t.heading3, fontSize: "1.4em", fontWeight: "bold" },
-  { tag: t.heading4, fontSize: "1.2em", fontWeight: "bold" },
-  { tag: t.heading5, fontSize: "1em", fontWeight: "bold" },
-  { tag: t.heading6, fontSize: "0.85em", fontWeight: "bold" },
+  { tag: t.heading1, fontSize: "2em", fontWeight: "bold", color: "hsl(var(--primary))" },
+  { tag: t.heading2, fontSize: "1.75em", fontWeight: "bold", color: "hsl(var(--primary))" },
+  { tag: t.heading3, fontSize: "1.5em", fontWeight: "bold", color: "hsl(var(--primary))" },
+  { tag: t.heading4, fontSize: "1.25em", fontWeight: "bold" },
+  { tag: t.heading5, fontSize: "1.1em", fontWeight: "bold" },
+  { tag: t.heading6, fontSize: "1em", fontWeight: "bold" },
   { tag: t.strong, fontWeight: "bold" },
   { tag: t.emphasis, fontStyle: "italic" },
   { tag: t.strikethrough, textDecoration: "line-through" },
   { tag: t.link, color: "hsl(var(--primary))", textDecoration: "underline" },
-  { tag: t.monospace, fontFamily: "monospace", backgroundColor: "hsl(var(--muted))", padding: "0.2em 0.4em", borderRadius: "3px", fontSize: "0.9em" },
+  { tag: t.monospace, fontFamily: "var(--font-mono)", backgroundColor: "hsl(var(--muted))", padding: "0.1em 0.3em", borderRadius: "3px", fontSize: "0.9em" },
   { tag: t.quote, color: "hsl(var(--muted-foreground))", fontStyle: "italic" },
+  // Enhanced syntax highlighting for code blocks
+  { tag: t.keyword, color: "#c678dd", fontWeight: "bold" },
+  { tag: t.operator, color: "#56b6c2" },
+  { tag: t.string, color: "#98c379" },
+  { tag: t.comment, color: "#abb2bf", fontStyle: "italic" },
+  { tag: t.number, color: "#d19a66" },
+  { tag: t.variableName, color: "#e06c75" },
+  { tag: t.function(t.variableName), color: "#61afef" },
+  { tag: t.propertyName, color: "#d19a66" },
+  { tag: t.typeName, color: "#e5c07b" },
+  { tag: t.className, color: "#e5c07b" },
+  { tag: t.atom, color: "#d19a66" },
+  { tag: t.bool, color: "#d19a66" },
+  { tag: t.meta, color: "#abb2bf" },
+  { tag: t.punctuation, color: "#abb2bf" },
 ]);
 
 const customTheme = EditorView.theme({
@@ -151,7 +166,9 @@ export function LivePreviewEditor({ value, onChange, liveMode = true, theme = 'l
     const exts = [
       markdown({ base: markdownLanguage, codeLanguages: languages }),
       customTheme,
-      EditorView.lineWrapping
+      EditorView.lineWrapping,
+      indentUnit.of("  "),
+      syntaxHighlighting(defaultHighlightStyle, { fallback: true })
     ];
     if (liveMode) {
       exts.push(hideMarksPlugin);

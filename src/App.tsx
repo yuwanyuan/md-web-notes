@@ -8,6 +8,9 @@ import { Toaster, toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import vscDarkPlus from 'react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus';
+import prism from 'react-syntax-highlighter/dist/esm/styles/prism/prism';
 import { format } from 'date-fns';
 import { cn } from './lib/utils';
 import { LivePreviewEditor } from './components/LivePreviewEditor';
@@ -37,20 +40,20 @@ const remarkHighlight = () => {
   return (tree: any) => {
     const visit = (node: any) => {
       if (node.children) {
-        const newChildren: any[] = [];
-        node.children.forEach((child: any) => {
+        let i = 0;
+        while (i < node.children.length) {
+          const child = node.children[i];
           if (child.type === 'text') {
             const regex = /==(.+?)==/g;
             let lastIndex = 0;
             let match;
-            let hasMatch = false;
+            const newNodes: any[] = [];
 
             while ((match = regex.exec(child.value)) !== null) {
-              hasMatch = true;
               if (match.index > lastIndex) {
-                newChildren.push({ type: 'text', value: child.value.slice(lastIndex, match.index) });
+                newNodes.push({ type: 'text', value: child.value.slice(lastIndex, match.index) });
               }
-              newChildren.push({
+              newNodes.push({
                 type: 'emphasis',
                 data: { hName: 'mark' },
                 children: [{ type: 'text', value: match[1] }]
@@ -58,19 +61,19 @@ const remarkHighlight = () => {
               lastIndex = regex.lastIndex;
             }
 
-            if (hasMatch) {
+            if (newNodes.length > 0) {
               if (lastIndex < child.value.length) {
-                newChildren.push({ type: 'text', value: child.value.slice(lastIndex) });
+                newNodes.push({ type: 'text', value: child.value.slice(lastIndex) });
               }
-            } else {
-              newChildren.push(child);
+              node.children.splice(i, 1, ...newNodes);
+              i += newNodes.length;
+              continue;
             }
           } else {
-            newChildren.push(child);
             visit(child);
           }
-        });
-        node.children = newChildren;
+          i++;
+        }
       }
     };
     visit(tree);
@@ -133,7 +136,8 @@ const translations = {
     webdavTips: 'WebDAV 连接提示：',
     webdavTip1: 'Infini-Cloud (TeraCLOUD)：地址通常为 https://[您的服务器].teracloud.jp/dav/，并且必须在“My Page”中开启“Apps Connection”并使用生成的 Apps Password (应用密码)，而不是您的登录密码。',
     webdavTip2: '坚果云：地址为 https://dav.jianguoyun.com/dav/，需要使用在安全设置中生成的第三方应用密码。',
-    webdavTip3: '请确保您的 WebDAV 服务器地址填写的是 WebDAV 专属链接，而不是网页版主页链接。'
+    webdavTip3: '请确保您的 WebDAV 服务器地址填写的是 WebDAV 专属链接，而不是网页版主页链接。',
+    loading: '加载中'
   },
   en: {
     appName: 'mdQuick',
@@ -189,12 +193,58 @@ const translations = {
     webdavTips: 'WebDAV Connection Tips:',
     webdavTip1: 'Infini-Cloud (TeraCLOUD): The address is usually https://[server].teracloud.jp/dav/. You must enable "Apps Connection" in "My Page" and use the generated Apps Password, not your login password.',
     webdavTip2: 'Jianguoyun: The address is https://dav.jianguoyun.com/dav/. Use the third-party app password generated in security settings.',
-    webdavTip3: 'Ensure the WebDAV server address is the dedicated WebDAV link, not the web homepage link.'
+    webdavTip3: 'Ensure the WebDAV server address is the dedicated WebDAV link, not the web homepage link.',
+    loading: 'Loading'
   }
 };
 
+// --- Error Boundary ---
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: Error | null }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("ErrorBoundary caught an error", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-screen p-4 text-center bg-background text-foreground">
+          <h1 className="text-2xl font-bold mb-4">Something went wrong.</h1>
+          <pre className="p-4 bg-muted rounded-md overflow-auto max-w-full text-left text-xs mb-4">
+            {this.state.error?.message}
+          </pre>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-md"
+          >
+            Reload Page
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 // --- Main App Component ---
 export default function App() {
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
+  );
+}
+
+function AppContent() {
   const [language, setLanguage] = useState<'zh' | 'en'>(() => {
     return (localStorage.getItem('language') as 'zh' | 'en') || 'zh';
   });
@@ -216,6 +266,8 @@ export default function App() {
     return { url: '', username: '', password: '', directory: '/notes', rememberPassword: true, useProxy: true };
   });
   
+  console.log('AppContent rendering, config.url:', config.url);
+  
   const [showSettings, setShowSettings] = useState(!config.url);
   const [notes, setNotes] = useState<Note[]>([]);
   const [activeNote, setActiveNote] = useState<Note | null>(null);
@@ -232,7 +284,21 @@ export default function App() {
     return false;
   });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [editingFilename, setEditingFilename] = useState('');
   const editorRef = useRef<ReactCodeMirrorRef>(null);
+
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  useEffect(() => {
+    if (activeNote) {
+      setEditingFilename(activeNote.filename.replace('.md', ''));
+      
+      // Add a small delay when switching notes to prevent editor race conditions
+      setIsTransitioning(true);
+      const timer = setTimeout(() => setIsTransitioning(false), 200);
+      return () => clearTimeout(timer);
+    }
+  }, [activeNote?.filename]);
 
   useEffect(() => {
     localStorage.setItem('language', language);
@@ -349,33 +415,61 @@ export default function App() {
   };
 
   const handleSelectNote = async (note: Note) => {
-    if (activeNote?.isDirty) {
-      // Force save current before switching
-      try {
-        const path = `${config.directory.replace(/\/$/, '')}/${activeNote.filename}`;
-        await writeNote(path, activeNote.content);
-      } catch (e) {
-        toast.error('切换前保存当前笔记失败');
-      }
+    // If clicking the already active note, just close sidebar on mobile
+    if (activeNote?.filename === note.filename) {
+      if (window.innerWidth < 768) setIsSidebarOpen(false);
+      return;
     }
+
+    // Close sidebar immediately on mobile for better feedback
+    if (window.innerWidth < 768) setIsSidebarOpen(false);
+
+    if (activeNote?.isDirty) {
+      // Save current note in background to not block UI switch
+      const oldNote = { ...activeNote };
+      const path = `${config.directory.replace(/\/$/, '')}/${oldNote.filename}`;
+      writeNote(path, oldNote.content).catch(e => {
+        console.error('Background save failed:', e);
+        toast.error('保存上一个笔记失败');
+      });
+      
+      // Mark as not dirty locally so we don't try to save it again
+      setNotes(prev => prev.map(n => n.filename === oldNote.filename ? { ...n, isDirty: false } : n));
+    }
+
+    // Capture the filename we are trying to load
+    const targetFilename = note.filename;
+
+    // Set activeNote immediately to provide instant feedback
+    setActiveNote(note);
 
     if (!note.content && !note.isLocalOnly) {
       setIsLoading(true);
       try {
-        const path = `${config.directory.replace(/\/$/, '')}/${note.filename}`;
+        const path = `${config.directory.replace(/\/$/, '')}/${targetFilename}`;
         const content = await readNote(path);
-        const loadedNote = { ...note, content };
-        setActiveNote(loadedNote);
-        setNotes(prev => prev.map(n => n.filename === note.filename ? loadedNote : n));
-        if (window.innerWidth < 768) setIsSidebarOpen(false);
+        
+        // Use functional update to ensure we only update if the user hasn't switched notes
+        setActiveNote(prev => {
+          if (prev?.filename === targetFilename) {
+            return { ...prev, content };
+          }
+          return prev;
+        });
+        
+        // Update the notes list as well
+        setNotes(prev => prev.map(n => 
+          n.filename === targetFilename ? { ...n, content } : n
+        ));
       } catch (error) {
+        console.error(error);
         toast.error(t.loadError);
       } finally {
+        // Only stop loading if we are still on the same note
+        // Actually, setIsLoading(false) is fine as it's global, but it might hide loading for a DIFFERENT note
+        // But since we only load one note at a time, it's mostly okay.
         setIsLoading(false);
       }
-    } else {
-      setActiveNote(note);
-      if (window.innerWidth < 768) setIsSidebarOpen(false);
     }
   };
 
@@ -411,9 +505,7 @@ export default function App() {
             }
             
             setNotes(prev => prev.filter(n => n.filename !== filename));
-            if (activeNote?.filename === filename) {
-              setActiveNote(null);
-            }
+            setActiveNote(prev => prev?.filename === filename ? null : prev);
             toast.success(t.delete + '成功');
           } catch (error) {
             console.error(error);
@@ -430,20 +522,21 @@ export default function App() {
     });
   };
 
-  const handleRenameNote = async (newFilename: string) => {
-    if (!activeNote || newFilename === activeNote.filename.replace('.md', '')) return;
+  const handleRenameNote = async (oldFilename: string, newFilename: string) => {
+    if (!activeNote || newFilename === oldFilename.replace('.md', '')) return;
     
     const newFilenameWithExt = newFilename.endsWith('.md') ? newFilename : `${newFilename}.md`;
     
     // Check if file already exists
-    if (notes.some(n => n.filename === newFilenameWithExt)) {
+    if (notes.some(n => n.filename === newFilenameWithExt && n.filename !== oldFilename)) {
       toast.error(t.fileExist);
+      setEditingFilename(oldFilename.replace('.md', ''));
       return;
     }
 
     try {
       setIsSyncing(true);
-      const oldPath = `${config.directory.replace(/\/$/, '')}/${activeNote.filename}`;
+      const oldPath = `${config.directory.replace(/\/$/, '')}/${oldFilename}`;
       const newPath = `${config.directory.replace(/\/$/, '')}/${newFilenameWithExt}`;
       
       if (!activeNote.isLocalOnly) {
@@ -455,28 +548,35 @@ export default function App() {
       }
       
       // Update local state
-      const updatedNote = { ...activeNote, filename: newFilenameWithExt };
-      setActiveNote(updatedNote);
+      setActiveNote(prev => {
+        if (prev?.filename === oldFilename) {
+          return { ...prev, filename: newFilenameWithExt };
+        }
+        return prev;
+      });
+      
       setNotes(prev => prev.map(n => 
-        n.filename === activeNote.filename ? updatedNote : n
+        n.filename === oldFilename ? { ...n, filename: newFilenameWithExt } : n
       ));
       
       toast.success(t.renameSuccess);
     } catch (error) {
       console.error(error);
       toast.error(t.renameError);
+      setEditingFilename(oldFilename.replace('.md', ''));
     } finally {
       setIsSyncing(false);
     }
   };
 
-  const handleContentChange = (newContent: string) => {
-    if (!activeNote) return;
-    setActiveNote({ ...activeNote, content: newContent, isDirty: true });
-    setNotes(prev => prev.map(n => 
-      n.filename === activeNote.filename 
-        ? { ...n, content: newContent, isDirty: true } 
-        : n
+  const handleContentChange = (newContent: string, targetFilename: string) => {
+    setActiveNote(prev => {
+      if (!prev || prev.filename !== targetFilename) return prev;
+      return { ...prev, content: newContent, isDirty: true };
+    });
+    
+    setNotes(notesPrev => notesPrev.map(n => 
+      n.filename === targetFilename ? { ...n, content: newContent, isDirty: true } : n
     ));
   };
 
@@ -504,7 +604,7 @@ export default function App() {
 
       {/* Sidebar */}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-40 w-64 border-r border-border bg-muted/30 flex flex-col flex-shrink-0 transition-transform duration-300 ease-in-out md:relative md:translate-x-0",
+        "fixed inset-y-0 left-0 z-40 w-64 border-r border-border bg-card flex flex-col flex-shrink-0 transition-transform duration-300 ease-in-out md:relative md:translate-x-0",
         isSidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="p-4 border-b border-border flex items-center justify-between">
@@ -581,7 +681,15 @@ export default function App() {
       </div>
 
       {/* Main Editor Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 relative">
+        {isLoading && (
+          <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] z-10 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-2">
+              <RefreshCw className="w-8 h-8 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">{t.loading}...</p>
+            </div>
+          </div>
+        )}
         {activeNote ? (
           <>
             <div className="flex flex-col border-b border-border flex-shrink-0">
@@ -595,19 +703,16 @@ export default function App() {
                   </button>
                   <input 
                     type="text" 
-                    value={activeNote.filename.replace('.md', '')}
+                    value={editingFilename}
                     onChange={(e) => {
-                      setActiveNote({ ...activeNote, filename: e.target.value });
+                      setEditingFilename(e.target.value);
                     }}
                     onBlur={(e) => {
                       if (e.target.value.trim() !== '') {
-                        handleRenameNote(e.target.value.trim());
+                        handleRenameNote(activeNote.filename, e.target.value.trim());
                       } else {
                         // Revert if empty
-                        const originalNote = notes.find(n => n.filename === activeNote.filename);
-                        if (originalNote) {
-                          setActiveNote(originalNote);
-                        }
+                        setEditingFilename(activeNote.filename.replace('.md', ''));
                       }
                     }}
                     onKeyDown={(e) => {
@@ -663,13 +768,21 @@ export default function App() {
             <div className="flex-1 overflow-hidden flex relative">
               {editMode === 'edit' && (
                 <div className="h-full w-full relative overflow-y-auto">
-                  <LivePreviewEditor
-                    editorRef={editorRef}
-                    value={activeNote.content}
-                    onChange={handleContentChange}
-                    liveMode={true}
-                    theme={isDarkMode ? 'dark' : 'light'}
-                  />
+                  {!isTransitioning && (
+                    <LivePreviewEditor
+                      key={activeNote.filename}
+                      editorRef={editorRef}
+                      value={activeNote.content}
+                      onChange={(val) => handleContentChange(val, activeNote.filename)}
+                      liveMode={true}
+                      theme={isDarkMode ? 'dark' : 'light'}
+                    />
+                  )}
+                  {isTransitioning && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-background/50">
+                      <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
                 </div>
               )}
               {editMode === 'preview' && (
@@ -678,7 +791,24 @@ export default function App() {
                     <ReactMarkdown 
                       remarkPlugins={[remarkGfm, remarkBreaks, remarkHighlight]}
                       components={{
-                        mark: ({node, ...props}) => <mark className="bg-red-200 dark:bg-red-500/30 text-inherit rounded px-0.5" {...props} />
+                        mark: ({node, ...props}) => <mark className="bg-red-200 dark:bg-red-500/30 text-inherit rounded px-0.5" {...props} />,
+                        code({node, inline, className, children, ...props}: any) {
+                          const match = /language-(\w+)/.exec(className || '');
+                          return !inline && match ? (
+                            <SyntaxHighlighter
+                              style={isDarkMode ? vscDarkPlus : prism}
+                              language={match[1]}
+                              PreTag="div"
+                              {...props}
+                            >
+                              {String(children).replace(/\n$/, '')}
+                            </SyntaxHighlighter>
+                          ) : (
+                            <code className={className} {...props}>
+                              {children}
+                            </code>
+                          );
+                        }
                       }}
                     >
                       {activeNote.content}

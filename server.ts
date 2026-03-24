@@ -17,6 +17,13 @@ async function startServer() {
 
     console.log(`[Proxy] ${req.method} ${targetUrl}`);
 
+    // Disable caching for proxy requests to avoid browser cache issues
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+    res.setHeader('Vary', 'x-target-url');
+
     try {
       const headers = new Headers();
       // 复制请求头，排除一些可能导致问题的头

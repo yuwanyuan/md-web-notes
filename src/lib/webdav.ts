@@ -49,19 +49,44 @@ const customFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   // Fix double slashes in the path (but preserve the protocol slashes like https://)
   targetUrl = targetUrl.replace(/([^:]\/)\/+/g, "$1");
   
-  const proxyUrl = '/api/proxy';
-  const proxyHeaders = new Headers(requestInit.headers);
-  proxyHeaders.set('x-target-url', targetUrl);
+  const proxyUrl = `${window.location.origin}/api/proxy`;
   
+  // Filter out forbidden headers that the browser might not allow setting via fetch
+  const forbiddenHeaders = [
+    'host', 'connection', 'content-length', 'origin', 'referer', 
+    'user-agent', 'cookie', 'sec-ch-ua', 'sec-ch-ua-mobile', 
+    'sec-ch-ua-platform', 'sec-fetch-dest', 'sec-fetch-mode', 
+    'sec-fetch-site', 'sec-fetch-user', 'upgrade-insecure-requests'
+  ];
+  
+  const proxyHeaders = new Headers();
+  if (requestInit.headers) {
+    const originalHeaders = new Headers(requestInit.headers);
+    originalHeaders.forEach((value, key) => {
+      if (!forbiddenHeaders.includes(key.toLowerCase())) {
+        proxyHeaders.append(key, value);
+      }
+    });
+  }
+  
+  // Encode the target URL to ensure it only contains ASCII characters, 
+  // as it will be used in an HTTP header (x-target-url).
+  // We use encodeURI but we need to be careful not to double encode if it's already encoded.
+  // A safer way is to ensure it's a valid URL string.
+  const encodedTargetUrl = encodeURI(decodeURI(targetUrl));
+  
+  proxyHeaders.set('x-target-url', encodedTargetUrl);
+  
+  const method = (requestInit.method || 'GET').toUpperCase();
   try {
-    const method = (requestInit.method || 'GET').toUpperCase();
     const hasBody = requestInit.body !== undefined && requestInit.body !== null;
     const bodyAllowed = !['GET', 'HEAD'].includes(method);
     
     const fetchOptions: any = {
       method,
-      headers: proxyHeaders,
+      headers: Object.fromEntries(proxyHeaders.entries()),
       body: bodyAllowed && hasBody ? requestInit.body : undefined,
+      cache: 'no-store', // Disable browser caching for proxy requests
     };
     
     if (bodyAllowed && hasBody && typeof ReadableStream !== 'undefined' && requestInit.body instanceof ReadableStream) {
@@ -70,8 +95,8 @@ const customFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     
     return await originalFetch(proxyUrl, fetchOptions);
   } catch (error: any) {
-    console.error("Proxy fetch network error:", error);
-    return new Response(`Proxy Fetch Error: ${error.message || String(error)}`, {
+    console.error("Proxy fetch network error:", error, "Target:", targetUrl, "Method:", method);
+    return new Response(`Proxy Fetch Error: ${error.message || String(error)} (Target: ${targetUrl}, Method: ${method})`, {
       status: 599,
       statusText: "Custom Fetch Error"
     });
