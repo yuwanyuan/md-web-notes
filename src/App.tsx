@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Settings, Save, RefreshCw, Plus, FileText, Trash2, X, Check,
   Bold, Italic, Strikethrough, Heading, List, ListOrdered, Link as LinkIcon, Image as ImageIcon, Code, Quote,
-  Moon, Sun, Highlighter
+  Moon, Sun, Highlighter, Menu, Github, Languages
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
@@ -77,8 +77,130 @@ const remarkHighlight = () => {
   };
 };
 
+// --- Translations ---
+const translations = {
+  zh: {
+    appName: 'md速记',
+    newNote: '新建笔记',
+    syncNotes: '同步笔记',
+    settings: '设置',
+    lightMode: '切换到浅色模式',
+    darkMode: '切换到深色模式',
+    noNotes: '未找到笔记。请新建一个或检查 WebDAV 设置。',
+    deleteConfirm: '确定要删除此笔记吗？',
+    delete: '删除',
+    cancel: '取消',
+    renameSuccess: '重命名成功',
+    renameError: '重命名失败',
+    fileExist: '文件名已存在',
+    saveSuccess: '已保存',
+    saving: '保存中...',
+    unsaved: '未保存的更改',
+    edit: '编辑',
+    preview: '预览',
+    bold: '加粗',
+    italic: '斜体',
+    strikethrough: '删除线',
+    heading: '标题',
+    list: '无序列表',
+    orderedList: '有序列表',
+    link: '链接',
+    image: '图片',
+    code: '代码',
+    highlight: '高亮',
+    quote: '引用',
+    selectNote: '选择一个笔记或新建一个',
+    webdavConfig: 'WebDAV 配置',
+    serverUrl: '服务器地址',
+    username: '用户名',
+    password: '密码',
+    directory: '目录路径',
+    directoryHint: '笔记存储的文件夹路径。',
+    rememberPassword: '记住密码',
+    useProxy: '使用代理 (解决 CORS 跨域问题)',
+    testConnection: '测试连接',
+    saveAndConnect: '保存并连接',
+    testSuccess: '连接测试成功！',
+    testError: '连接测试失败',
+    syncSuccess: '笔记同步成功',
+    syncError: '同步失败',
+    loadError: '加载笔记内容失败',
+    autoSaveError: '自动保存笔记失败',
+    about: '关于',
+    githubRepo: '文件仓库',
+    language: '语言',
+    switchLanguage: '切换语言',
+    webdavTips: 'WebDAV 连接提示：',
+    webdavTip1: 'Infini-Cloud (TeraCLOUD)：地址通常为 https://[您的服务器].teracloud.jp/dav/，并且必须在“My Page”中开启“Apps Connection”并使用生成的 Apps Password (应用密码)，而不是您的登录密码。',
+    webdavTip2: '坚果云：地址为 https://dav.jianguoyun.com/dav/，需要使用在安全设置中生成的第三方应用密码。',
+    webdavTip3: '请确保您的 WebDAV 服务器地址填写的是 WebDAV 专属链接，而不是网页版主页链接。'
+  },
+  en: {
+    appName: 'mdQuick',
+    newNote: 'New Note',
+    syncNotes: 'Sync Notes',
+    settings: 'Settings',
+    lightMode: 'Switch to Light Mode',
+    darkMode: 'Switch to Dark Mode',
+    noNotes: 'No notes found. Create one or check WebDAV settings.',
+    deleteConfirm: 'Are you sure you want to delete this note?',
+    delete: 'Delete',
+    cancel: 'Cancel',
+    renameSuccess: 'Rename successful',
+    renameError: 'Rename failed',
+    fileExist: 'Filename already exists',
+    saveSuccess: 'Saved',
+    saving: 'Saving...',
+    unsaved: 'Unsaved changes',
+    edit: 'Edit',
+    preview: 'Preview',
+    bold: 'Bold',
+    italic: 'Italic',
+    strikethrough: 'Strikethrough',
+    heading: 'Heading',
+    list: 'Bullet List',
+    orderedList: 'Ordered List',
+    link: 'Link',
+    image: 'Image',
+    code: 'Code',
+    highlight: 'Highlight',
+    quote: 'Quote',
+    selectNote: 'Select a note or create a new one',
+    webdavConfig: 'WebDAV Configuration',
+    serverUrl: 'Server URL',
+    username: 'Username',
+    password: 'Password',
+    directory: 'Directory Path',
+    directoryHint: 'Folder path where notes are stored.',
+    rememberPassword: 'Remember Password',
+    useProxy: 'Use Proxy (Fix CORS issues)',
+    testConnection: 'Test Connection',
+    saveAndConnect: 'Save & Connect',
+    testSuccess: 'Connection test successful!',
+    testError: 'Connection test failed',
+    syncSuccess: 'Notes synced successfully',
+    syncError: 'Sync failed',
+    loadError: 'Failed to load note content',
+    autoSaveError: 'Failed to auto-save note',
+    about: 'About',
+    githubRepo: 'GitHub Repository',
+    language: 'Language',
+    switchLanguage: 'Switch Language',
+    webdavTips: 'WebDAV Connection Tips:',
+    webdavTip1: 'Infini-Cloud (TeraCLOUD): The address is usually https://[server].teracloud.jp/dav/. You must enable "Apps Connection" in "My Page" and use the generated Apps Password, not your login password.',
+    webdavTip2: 'Jianguoyun: The address is https://dav.jianguoyun.com/dav/. Use the third-party app password generated in security settings.',
+    webdavTip3: 'Ensure the WebDAV server address is the dedicated WebDAV link, not the web homepage link.'
+  }
+};
+
 // --- Main App Component ---
 export default function App() {
+  const [language, setLanguage] = useState<'zh' | 'en'>(() => {
+    return (localStorage.getItem('language') as 'zh' | 'en') || 'zh';
+  });
+  
+  const t = translations[language];
+
   const [config, setConfig] = useState<WebDAVConfig>(() => {
     const saved = localStorage.getItem('webdav_config');
     if (saved) {
@@ -109,7 +231,12 @@ export default function App() {
     }
     return false;
   });
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const editorRef = useRef<ReactCodeMirrorRef>(null);
+
+  useEffect(() => {
+    localStorage.setItem('language', language);
+  }, [language]);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -147,10 +274,10 @@ export default function App() {
     setIsTestingConnection(true);
     try {
       await testConnection(testConfig);
-      toast.success('连接测试成功！');
+      toast.success(t.testSuccess);
     } catch (error: any) {
       console.error(error);
-      toast.error(`连接测试失败: ${error.message || '请检查地址、凭据或代理设置'}`);
+      toast.error(`${t.testError}: ${error.message || '请检查地址、凭据或代理设置'}`);
     } finally {
       setIsTestingConnection(false);
     }
@@ -197,7 +324,7 @@ export default function App() {
         setActiveNote(prev => prev ? { ...prev, isDirty: false } : null);
       } catch (error) {
         console.error(error);
-        toast.error('自动保存笔记失败');
+        toast.error(t.autoSaveError);
       } finally {
         setIsSyncing(false);
       }
@@ -212,10 +339,10 @@ export default function App() {
     try {
       const remoteNotes = await listNotes(config.directory);
       setNotes(remoteNotes.map(n => ({ ...n, content: '' })));
-      toast.success('笔记同步成功');
+      toast.success(t.syncSuccess);
     } catch (error: any) {
       console.error(error);
-      toast.error(`同步失败: ${error.message || '请检查 CORS 或凭据'}`);
+      toast.error(`${t.syncError}: ${error.message || '请检查 CORS 或凭据'}`);
     } finally {
       setIsLoading(false);
     }
@@ -240,13 +367,15 @@ export default function App() {
         const loadedNote = { ...note, content };
         setActiveNote(loadedNote);
         setNotes(prev => prev.map(n => n.filename === note.filename ? loadedNote : n));
+        if (window.innerWidth < 768) setIsSidebarOpen(false);
       } catch (error) {
-        toast.error('加载笔记内容失败');
+        toast.error(t.loadError);
       } finally {
         setIsLoading(false);
       }
     } else {
       setActiveNote(note);
+      if (window.innerWidth < 768) setIsSidebarOpen(false);
     }
   };
 
@@ -262,14 +391,15 @@ export default function App() {
     setNotes([newNote, ...notes]);
     setActiveNote(newNote);
     setEditMode('edit');
+    if (window.innerWidth < 768) setIsSidebarOpen(false);
   };
 
   const handleDeleteNote = async (filename: string, e: React.MouseEvent) => {
     e.stopPropagation();
     
-    toast('确定要删除此笔记吗？', {
+    toast(t.deleteConfirm, {
       action: {
-        label: '删除',
+        label: t.delete,
         onClick: async () => {
           try {
             setIsSyncing(true);
@@ -284,17 +414,17 @@ export default function App() {
             if (activeNote?.filename === filename) {
               setActiveNote(null);
             }
-            toast.success('笔记已删除');
+            toast.success(t.delete + '成功');
           } catch (error) {
             console.error(error);
-            toast.error('删除笔记失败');
+            toast.error(t.delete + '失败');
           } finally {
             setIsSyncing(false);
           }
         },
       },
       cancel: {
-        label: '取消',
+        label: t.cancel,
         onClick: () => {},
       },
     });
@@ -307,7 +437,7 @@ export default function App() {
     
     // Check if file already exists
     if (notes.some(n => n.filename === newFilenameWithExt)) {
-      toast.error('文件名已存在');
+      toast.error(t.fileExist);
       return;
     }
 
@@ -331,10 +461,10 @@ export default function App() {
         n.filename === activeNote.filename ? updatedNote : n
       ));
       
-      toast.success('重命名成功');
+      toast.success(t.renameSuccess);
     } catch (error) {
       console.error(error);
-      toast.error('重命名失败');
+      toast.error(t.renameError);
     } finally {
       setIsSyncing(false);
     }
@@ -361,28 +491,39 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen w-full bg-background text-foreground overflow-hidden font-sans">
+    <div className="flex h-screen w-full bg-background text-foreground overflow-hidden font-sans relative">
       <Toaster position="top-center" />
       
+      {/* Sidebar Overlay for Mobile */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <div className="w-64 border-r border-border bg-muted/30 flex flex-col flex-shrink-0">
+      <div className={cn(
+        "fixed inset-y-0 left-0 z-40 w-64 border-r border-border bg-muted/30 flex flex-col flex-shrink-0 transition-transform duration-300 ease-in-out md:relative md:translate-x-0",
+        isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
         <div className="p-4 border-b border-border flex items-center justify-between">
           <h1 className="font-semibold flex items-center gap-2">
             <FileText className="w-4 h-4" />
-            md速记
+            {t.appName}
           </h1>
           <div className="flex gap-1">
             <button 
               onClick={() => setIsDarkMode(!isDarkMode)} 
               className="p-1.5 hover:bg-muted rounded-md transition-colors"
-              title={isDarkMode ? "切换到浅色模式" : "切换到深色模式"}
+              title={isDarkMode ? t.lightMode : t.darkMode}
             >
               {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
             <button 
               onClick={fetchNotes} 
               className="p-1.5 hover:bg-muted rounded-md transition-colors"
-              title="同步笔记"
+              title={t.syncNotes}
               disabled={isLoading || !config.url}
             >
               <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
@@ -390,7 +531,7 @@ export default function App() {
             <button 
               onClick={() => setShowSettings(true)} 
               className="p-1.5 hover:bg-muted rounded-md transition-colors"
-              title="设置"
+              title={t.settings}
             >
               <Settings className="w-4 h-4" />
             </button>
@@ -404,14 +545,14 @@ export default function App() {
             className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-2 px-4 rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
             <Plus className="w-4 h-4" />
-            新建笔记
+            {t.newNote}
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {notes.length === 0 && !isLoading && (
             <div className="text-center text-sm text-muted-foreground p-4">
-              未找到笔记。请新建一个或检查 WebDAV 设置。
+              {t.noNotes}
             </div>
           )}
           {notes.map(note => (
@@ -430,7 +571,7 @@ export default function App() {
               <button 
                 onClick={(e) => handleDeleteNote(note.filename, e)}
                 className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-destructive transition-opacity"
-                title="删除"
+                title={t.delete}
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -445,7 +586,13 @@ export default function App() {
           <>
             <div className="flex flex-col border-b border-border flex-shrink-0">
               <div className="h-14 flex items-center justify-between px-4">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 md:gap-3 overflow-hidden">
+                  <button 
+                    onClick={() => setIsSidebarOpen(true)}
+                    className="p-1.5 hover:bg-muted rounded-md md:hidden flex-shrink-0"
+                  >
+                    <Menu className="w-5 h-5" />
+                  </button>
                   <input 
                     type="text" 
                     value={activeNote.filename.replace('.md', '')}
@@ -468,45 +615,47 @@ export default function App() {
                         e.currentTarget.blur();
                       }
                     }}
-                    className="bg-transparent font-medium focus:outline-none focus:ring-1 focus:ring-ring rounded px-1"
+                    className="bg-transparent font-medium focus:outline-none focus:ring-1 focus:ring-ring rounded px-1 truncate min-w-0"
                   />
-                  {isSyncing && <span className="text-xs text-muted-foreground flex items-center gap-1"><RefreshCw className="w-3 h-3 animate-spin" /> 保存中...</span>}
-                  {!isSyncing && activeNote.isDirty && <span className="text-xs text-muted-foreground">未保存的更改</span>}
-                  {!isSyncing && !activeNote.isDirty && <span className="text-xs text-muted-foreground flex items-center gap-1"><Check className="w-3 h-3" /> 已保存</span>}
+                  <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
+                    {isSyncing && <span className="text-xs text-muted-foreground flex items-center gap-1"><RefreshCw className="w-3 h-3 animate-spin" /> {t.saving}</span>}
+                    {!isSyncing && activeNote.isDirty && <span className="text-xs text-muted-foreground">{t.unsaved}</span>}
+                    {!isSyncing && !activeNote.isDirty && <span className="text-xs text-muted-foreground flex items-center gap-1"><Check className="w-3 h-3" /> {t.saveSuccess}</span>}
+                  </div>
                 </div>
                 
-                <div className="flex bg-muted p-1 rounded-lg">
+                <div className="flex bg-muted p-1 rounded-lg flex-shrink-0">
                   <button 
                     onClick={() => setEditMode('edit')}
-                    className={cn("px-3 py-1 text-sm rounded-md transition-colors", editMode === 'edit' ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                    className={cn("px-2 md:px-3 py-1 text-sm rounded-md transition-colors", editMode === 'edit' ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground")}
                   >
-                    编辑
+                    {t.edit}
                   </button>
                   <button 
                     onClick={() => setEditMode('preview')}
-                    className={cn("px-3 py-1 text-sm rounded-md transition-colors", editMode === 'preview' ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                    className={cn("px-2 md:px-3 py-1 text-sm rounded-md transition-colors", editMode === 'preview' ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground")}
                   >
-                    预览
+                    {t.preview}
                   </button>
                 </div>
               </div>
               
               {/* Toolbar */}
               {editMode !== 'preview' && (
-                <div className="h-10 flex items-center gap-1 px-4 border-t border-border bg-muted/10 overflow-x-auto">
-                  <button onClick={() => insertMarkdown('**', '**')} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground" title="加粗"><Bold className="w-4 h-4" /></button>
-                  <button onClick={() => insertMarkdown('*', '*')} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground" title="斜体"><Italic className="w-4 h-4" /></button>
-                  <button onClick={() => insertMarkdown('~~', '~~')} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground" title="删除线"><Strikethrough className="w-4 h-4" /></button>
+                <div className="h-10 flex items-center gap-1 px-4 border-t border-border bg-muted/10 overflow-x-auto no-scrollbar">
+                  <button onClick={() => insertMarkdown('**', '**')} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground" title={t.bold}><Bold className="w-4 h-4" /></button>
+                  <button onClick={() => insertMarkdown('*', '*')} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground" title={t.italic}><Italic className="w-4 h-4" /></button>
+                  <button onClick={() => insertMarkdown('~~', '~~')} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground" title={t.strikethrough}><Strikethrough className="w-4 h-4" /></button>
                   <div className="w-px h-4 bg-border mx-1" />
-                  <button onClick={() => insertMarkdown('# ')} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground" title="标题"><Heading className="w-4 h-4" /></button>
-                  <button onClick={() => insertMarkdown('- ')} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground" title="无序列表"><List className="w-4 h-4" /></button>
-                  <button onClick={() => insertMarkdown('1. ')} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground" title="有序列表"><ListOrdered className="w-4 h-4" /></button>
+                  <button onClick={() => insertMarkdown('# ')} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground" title={t.heading}><Heading className="w-4 h-4" /></button>
+                  <button onClick={() => insertMarkdown('- ')} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground" title={t.list}><List className="w-4 h-4" /></button>
+                  <button onClick={() => insertMarkdown('1. ')} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground" title={t.orderedList}><ListOrdered className="w-4 h-4" /></button>
                   <div className="w-px h-4 bg-border mx-1" />
-                  <button onClick={() => insertMarkdown('[', '](url)')} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground" title="链接"><LinkIcon className="w-4 h-4" /></button>
-                  <button onClick={() => insertMarkdown('![alt](', ')')} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground" title="图片"><ImageIcon className="w-4 h-4" /></button>
-                  <button onClick={() => insertMarkdown('`', '`')} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground" title="代码"><Code className="w-4 h-4" /></button>
-                  <button onClick={() => insertMarkdown('==', '==')} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground" title="高亮"><Highlighter className="w-4 h-4" /></button>
-                  <button onClick={() => insertMarkdown('> ')} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground" title="引用"><Quote className="w-4 h-4" /></button>
+                  <button onClick={() => insertMarkdown('[', '](url)')} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground" title={t.link}><LinkIcon className="w-4 h-4" /></button>
+                  <button onClick={() => insertMarkdown('![alt](', ')')} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground" title={t.image}><ImageIcon className="w-4 h-4" /></button>
+                  <button onClick={() => insertMarkdown('`', '`')} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground" title={t.code}><Code className="w-4 h-4" /></button>
+                  <button onClick={() => insertMarkdown('==', '==')} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground" title={t.highlight}><Highlighter className="w-4 h-4" /></button>
+                  <button onClick={() => insertMarkdown('> ')} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground" title={t.quote}><Quote className="w-4 h-4" /></button>
                 </div>
               )}
             </div>
@@ -524,7 +673,7 @@ export default function App() {
                 </div>
               )}
               {editMode === 'preview' && (
-                <div className="h-full w-full overflow-y-auto p-8 bg-background relative">
+                <div className="h-full w-full overflow-y-auto p-4 md:p-8 bg-background relative">
                   <div className="max-w-3xl mx-auto markdown-body">
                     <ReactMarkdown 
                       remarkPlugins={[remarkGfm, remarkBreaks, remarkHighlight]}
@@ -540,9 +689,15 @@ export default function App() {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-muted-foreground flex-col gap-4">
+          <div className="flex-1 flex items-center justify-center text-muted-foreground flex-col gap-4 p-4 text-center">
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 hover:bg-muted rounded-md md:hidden absolute top-4 left-4"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
             <FileText className="w-12 h-12 opacity-20" />
-            <p>选择一个笔记或新建一个</p>
+            <p>{t.selectNote}</p>
           </div>
         )}
       </div>
@@ -550,9 +705,9 @@ export default function App() {
       {/* Settings Modal */}
       {showSettings && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card text-card-foreground w-full max-w-md rounded-xl shadow-lg border border-border overflow-hidden flex flex-col">
+          <div className="bg-card text-card-foreground w-full max-w-md rounded-xl shadow-lg border border-border overflow-hidden flex flex-col max-h-[90vh]">
             <div className="flex items-center justify-between p-4 border-b border-border">
-              <h2 className="font-semibold text-lg">WebDAV 配置</h2>
+              <h2 className="font-semibold text-lg">{t.webdavConfig}</h2>
               {config.url && (
                 <button onClick={() => setShowSettings(false)} className="p-1 hover:bg-muted rounded-md">
                   <X className="w-5 h-5" />
@@ -560,125 +715,159 @@ export default function App() {
               )}
             </div>
             
-            <form 
-              className="p-4 space-y-4"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const formData = new FormData(e.currentTarget);
-                let dir = formData.get('directory') as string || '/notes';
-                if (!dir.startsWith('/')) {
-                  dir = '/' + dir;
-                }
-                saveConfig({
-                  url: formData.get('url') as string,
-                  username: formData.get('username') as string,
-                  password: formData.get('password') as string,
-                  directory: dir,
-                  rememberPassword: formData.get('rememberPassword') === 'on',
-                  useProxy: formData.get('useProxy') === 'on',
-                });
-              }}
-            >
-              <div className="bg-blue-500/10 text-blue-600 dark:text-blue-400 p-3 rounded-md text-sm border border-blue-500/20 space-y-2">
-                <p><strong>💡 WebDAV 连接提示：</strong></p>
-                <ul className="list-disc pl-5 space-y-1">
-                  <li><strong>Infini-Cloud (TeraCLOUD)</strong>：地址通常为 <code>https://[您的服务器].teracloud.jp/dav/</code>，并且必须在“My Page”中开启“Apps Connection”并使用生成的 <strong>Apps Password (应用密码)</strong>，而不是您的登录密码。</li>
-                  <li><strong>坚果云</strong>：地址为 <code>https://dav.jianguoyun.com/dav/</code>，需要使用在安全设置中生成的<strong>第三方应用密码</strong>。</li>
-                  <li>请确保您的 WebDAV 服务器地址填写的是 <strong>WebDAV 专属链接</strong>，而不是网页版主页链接。</li>
-                </ul>
-              </div>
+            <div className="overflow-y-auto flex-1">
+              <form 
+                className="p-4 space-y-4"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget);
+                  let dir = formData.get('directory') as string || '/notes';
+                  if (!dir.startsWith('/')) {
+                    dir = '/' + dir;
+                  }
+                  saveConfig({
+                    url: formData.get('url') as string,
+                    username: formData.get('username') as string,
+                    password: formData.get('password') as string,
+                    directory: dir,
+                    rememberPassword: formData.get('rememberPassword') === 'on',
+                    useProxy: formData.get('useProxy') === 'on',
+                  });
+                }}
+              >
+                <div className="bg-blue-500/10 text-blue-600 dark:text-blue-400 p-3 rounded-md text-sm border border-blue-500/20 space-y-2">
+                  <p><strong>💡 {t.webdavTips}</strong></p>
+                  <ul className="list-disc pl-5 space-y-1">
+                    <li>{t.webdavTip1}</li>
+                    <li>{t.webdavTip2}</li>
+                    <li>{t.webdavTip3}</li>
+                  </ul>
+                </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">服务器地址</label>
-                <input 
-                  name="url" 
-                  defaultValue={config.url} 
-                  placeholder="https://webdav.example.com" 
-                  required
-                  className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">用户名</label>
+                  <label className="text-sm font-medium">{t.serverUrl}</label>
                   <input 
-                    name="username" 
-                    defaultValue={config.username} 
+                    name="url" 
+                    defaultValue={config.url} 
+                    placeholder="https://webdav.example.com" 
+                    required
                     className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">{t.username}</label>
+                    <input 
+                      name="username" 
+                      defaultValue={config.username} 
+                      className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">{t.password}</label>
+                    <input 
+                      name="password" 
+                      type="password"
+                      defaultValue={config.password} 
+                      className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">密码</label>
+                  <label className="text-sm font-medium">{t.directory}</label>
                   <input 
-                    name="password" 
-                    type="password"
-                    defaultValue={config.password} 
+                    name="directory" 
+                    defaultValue={config.directory} 
+                    placeholder="/notes" 
                     className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
                   />
+                  <p className="text-xs text-muted-foreground">{t.directoryHint}</p>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">目录路径</label>
-                <input 
-                  name="directory" 
-                  defaultValue={config.directory} 
-                  placeholder="/notes" 
-                  className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-                <p className="text-xs text-muted-foreground">笔记存储的文件夹路径。</p>
-              </div>
+                <div className="flex items-center gap-2 pt-2">
+                  <input 
+                    type="checkbox" 
+                    id="rememberPassword" 
+                    name="rememberPassword" 
+                    defaultChecked={config.rememberPassword ?? true} 
+                    className="rounded border-border text-primary focus:ring-primary w-4 h-4"
+                  />
+                  <label htmlFor="rememberPassword" className="text-sm font-medium cursor-pointer">{t.rememberPassword}</label>
+                </div>
 
-              <div className="flex items-center gap-2 pt-2">
-                <input 
-                  type="checkbox" 
-                  id="rememberPassword" 
-                  name="rememberPassword" 
-                  defaultChecked={config.rememberPassword ?? true} 
-                  className="rounded border-border text-primary focus:ring-primary w-4 h-4"
-                />
-                <label htmlFor="rememberPassword" className="text-sm font-medium cursor-pointer">记住密码</label>
-              </div>
+                <div className="flex items-center gap-2 pt-2">
+                  <input 
+                    type="checkbox" 
+                    id="useProxy" 
+                    name="useProxy" 
+                    defaultChecked={config.useProxy ?? true} 
+                    className="rounded border-border text-primary focus:ring-primary w-4 h-4"
+                  />
+                  <label htmlFor="useProxy" className="text-sm font-medium cursor-pointer">{t.useProxy}</label>
+                </div>
 
-              <div className="flex items-center gap-2 pt-2">
-                <input 
-                  type="checkbox" 
-                  id="useProxy" 
-                  name="useProxy" 
-                  defaultChecked={config.useProxy ?? true} 
-                  className="rounded border-border text-primary focus:ring-primary w-4 h-4"
-                />
-                <label htmlFor="useProxy" className="text-sm font-medium cursor-pointer">使用代理 (解决 CORS 跨域问题)</label>
-              </div>
-
-              <div className="pt-4 flex justify-end gap-2">
-                <button 
-                  type="button" 
-                  onClick={handleTestConnection}
-                  disabled={isTestingConnection}
-                  className="px-4 py-2 text-sm font-medium bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors disabled:opacity-50 flex items-center gap-2"
-                >
-                  {isTestingConnection ? <RefreshCw className="w-4 h-4 animate-spin" /> : null}
-                  测试连接
-                </button>
-                {config.url && (
+                <div className="pt-4 flex flex-wrap gap-2">
                   <button 
                     type="button" 
-                    onClick={() => setShowSettings(false)}
-                    className="px-4 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors"
+                    onClick={handleTestConnection}
+                    disabled={isTestingConnection}
+                    className="flex-1 px-4 py-2 text-sm font-medium bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
-                    取消
+                    {isTestingConnection ? <RefreshCw className="w-4 h-4 animate-spin" /> : null}
+                    {t.testConnection}
                   </button>
-                )}
-                <button 
-                  type="submit"
-                  className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-                >
-                  保存并连接
-                </button>
+                  <button 
+                    type="submit"
+                    className="flex-1 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                  >
+                    {t.saveAndConnect}
+                  </button>
+                </div>
+              </form>
+
+              <div className="p-4 border-t border-border space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Languages className="w-4 h-4" />
+                    {t.language}
+                  </label>
+                  <div className="flex bg-muted p-1 rounded-lg">
+                    <button 
+                      onClick={() => setLanguage('zh')}
+                      className={cn("flex-1 py-1.5 text-sm rounded-md transition-colors", language === 'zh' ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                    >
+                      中文
+                    </button>
+                    <button 
+                      onClick={() => setLanguage('en')}
+                      className={cn("flex-1 py-1.5 text-sm rounded-md transition-colors", language === 'en' ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                    >
+                      English
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Github className="w-4 h-4" />
+                    {t.about}
+                  </label>
+                  <div className="bg-muted/50 p-3 rounded-md">
+                    <p className="text-xs text-muted-foreground mb-1">{t.githubRepo}</p>
+                    <a 
+                      href="https://github.com/yuwanyuan/md-web-notes" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-500 hover:underline break-all"
+                    >
+                      https://github.com/yuwanyuan/md-web-notes
+                    </a>
+                  </div>
+                </div>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}
