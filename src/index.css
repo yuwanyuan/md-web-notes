@@ -111,16 +111,16 @@
   @apply border-l-4 border-muted-foreground pl-4 italic text-muted-foreground mb-4;
 }
 .markdown-body code {
-  @apply bg-muted px-1.5 py-0.5 rounded-md font-mono text-sm;
+  @apply bg-muted px-1.5 py-0.5 rounded-md font-mono text-sm dark:text-slate-200;
 }
 .markdown-body pre {
-  @apply bg-muted p-4 rounded-lg overflow-x-auto mb-4;
+  @apply bg-muted p-4 rounded-lg overflow-x-auto mb-4 dark:text-slate-200;
 }
 .markdown-body pre code {
   @apply bg-transparent p-0 text-sm;
 }
 .markdown-body mark {
-  @apply bg-red-200 dark:bg-red-900/50 px-1 rounded-sm;
+  @apply bg-red-200 dark:bg-red-900/50 px-1 rounded-sm dark:text-slate-200;
 }
 
 .cm-highlight {

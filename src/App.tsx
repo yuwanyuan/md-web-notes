@@ -812,7 +812,7 @@ function AppContent() {
                     <ReactMarkdown 
                       remarkPlugins={[remarkGfm, remarkBreaks, remarkHighlight]}
                       components={{
-                        mark: ({node, ...props}) => <mark className="bg-red-200 dark:bg-red-500/30 text-inherit rounded px-0.5" {...props} />,
+                        mark: ({node, ...props}) => <mark className="bg-red-200 dark:bg-red-500/30 text-inherit dark:text-slate-200 rounded px-0.5" {...props} />,
                         code({node, inline, className, children, ...props}: any) {
                           const match = /language-(\w+)/.exec(className || '');
                           return !inline && match ? (
@@ -820,6 +820,12 @@ function AppContent() {
                               style={isDarkMode ? vscDarkPlus : prism}
                               language={match[1]}
                               PreTag="div"
+                              customStyle={{
+                                margin: 0,
+                                borderRadius: '0.5rem',
+                                fontSize: '0.875rem',
+                                color: isDarkMode ? '#e2e8f0' : undefined,
+                              }}
                               {...props}
                             >
                               {String(children).replace(/\n$/, '')}
