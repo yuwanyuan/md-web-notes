@@ -139,7 +139,8 @@ const translations = {
     webdavTip3: '请确保您的 WebDAV 服务器地址填写的是 WebDAV 专属链接，而不是网页版主页链接。',
     loading: '加载中',
     openLatestNote: '打开网页默认打开最新的一个笔记',
-    generalSettings: '通用设置'
+    generalSettings: '通用设置',
+    dataLossWarning: '为避免您的数据丢失请先配置 WebDAV 存储，所有数据本地保存，我们无法读取您的信息'
   },
   en: {
     appName: 'mdQuick',
@@ -198,7 +199,8 @@ const translations = {
     webdavTip3: 'Ensure the WebDAV server address is the dedicated WebDAV link, not the web homepage link.',
     loading: 'Loading',
     openLatestNote: 'Open the latest note by default',
-    generalSettings: 'General Settings'
+    generalSettings: 'General Settings',
+    dataLossWarning: 'To avoid data loss, please configure WebDAV storage first. All data is saved locally, and we cannot read your information.'
   }
 };
 
@@ -870,6 +872,13 @@ function AppContent() {
                   <X className="w-5 h-5" />
                 </button>
               )}
+            </div>
+
+            <div className="px-4 py-3 bg-amber-500/10 border-b border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs leading-relaxed">
+              <p className="flex items-start gap-2">
+                <span className="shrink-0 mt-0.5">⚠️</span>
+                {t.dataLossWarning}
+              </p>
             </div>
             
             <div className="overflow-y-auto flex-1">
