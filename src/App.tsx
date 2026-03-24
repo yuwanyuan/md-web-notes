@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Settings, Save, RefreshCw, Plus, FileText, Trash2, X, Check,
   Bold, Italic, Strikethrough, Heading, List, ListOrdered, Link as LinkIcon, Image as ImageIcon, Code, Quote,
-  Moon, Sun, Highlighter, Menu, Github, Languages
+  Moon, Sun, Highlighter, Menu, Github, Languages, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
@@ -137,7 +137,9 @@ const translations = {
     webdavTip1: 'Infini-Cloud (TeraCLOUD)：地址通常为 https://[您的服务器].teracloud.jp/dav/，并且必须在“My Page”中开启“Apps Connection”并使用生成的 Apps Password (应用密码)，而不是您的登录密码。',
     webdavTip2: '坚果云：地址为 https://dav.jianguoyun.com/dav/，需要使用在安全设置中生成的第三方应用密码。',
     webdavTip3: '请确保您的 WebDAV 服务器地址填写的是 WebDAV 专属链接，而不是网页版主页链接。',
-    loading: '加载中'
+    loading: '加载中',
+    openLatestNote: '打开网页默认打开最新的一个笔记',
+    generalSettings: '通用设置'
   },
   en: {
     appName: 'mdQuick',
@@ -194,7 +196,9 @@ const translations = {
     webdavTip1: 'Infini-Cloud (TeraCLOUD): The address is usually https://[server].teracloud.jp/dav/. You must enable "Apps Connection" in "My Page" and use the generated Apps Password, not your login password.',
     webdavTip2: 'Jianguoyun: The address is https://dav.jianguoyun.com/dav/. Use the third-party app password generated in security settings.',
     webdavTip3: 'Ensure the WebDAV server address is the dedicated WebDAV link, not the web homepage link.',
-    loading: 'Loading'
+    loading: 'Loading',
+    openLatestNote: 'Open the latest note by default',
+    generalSettings: 'General Settings'
   }
 };
 
@@ -285,6 +289,10 @@ function AppContent() {
   });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [editingFilename, setEditingFilename] = useState('');
+  const [openLatestNote, setOpenLatestNote] = useState(() => {
+    return localStorage.getItem('open_latest_note') === 'true';
+  });
+  const [isWebDAVExpanded, setIsWebDAVExpanded] = useState(false);
   const editorRef = useRef<ReactCodeMirrorRef>(null);
 
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -303,6 +311,10 @@ function AppContent() {
   useEffect(() => {
     localStorage.setItem('language', language);
   }, [language]);
+
+  useEffect(() => {
+    localStorage.setItem('open_latest_note', openLatestNote.toString());
+  }, [openLatestNote]);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -404,8 +416,17 @@ function AppContent() {
     setIsLoading(true);
     try {
       const remoteNotes = await listNotes(config.directory);
-      setNotes(remoteNotes.map(n => ({ ...n, content: '' })));
+      const mappedNotes = remoteNotes.map(n => ({ ...n, content: '' }));
+      setNotes(mappedNotes);
       toast.success(t.syncSuccess);
+
+      // If openLatestNote is enabled and no active note, open the latest one
+      if (openLatestNote && mappedNotes.length > 0 && !activeNote) {
+        const latest = [...mappedNotes].sort((a, b) => 
+          new Date(b.lastmod || 0).getTime() - new Date(a.lastmod || 0).getTime()
+        )[0];
+        handleSelectNote(latest);
+      }
     } catch (error: any) {
       console.error(error);
       toast.error(`${t.syncError}: ${error.message || '请检查 CORS 或凭据'}`);
@@ -846,118 +867,150 @@ function AppContent() {
             </div>
             
             <div className="overflow-y-auto flex-1">
-              <form 
-                className="p-4 space-y-4"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const formData = new FormData(e.currentTarget);
-                  let dir = formData.get('directory') as string || '/notes';
-                  if (!dir.startsWith('/')) {
-                    dir = '/' + dir;
-                  }
-                  saveConfig({
-                    url: formData.get('url') as string,
-                    username: formData.get('username') as string,
-                    password: formData.get('password') as string,
-                    directory: dir,
-                    rememberPassword: formData.get('rememberPassword') === 'on',
-                    useProxy: formData.get('useProxy') === 'on',
-                  });
-                }}
-              >
-                <div className="bg-blue-500/10 text-blue-600 dark:text-blue-400 p-3 rounded-md text-sm border border-blue-500/20 space-y-2">
-                  <p><strong>💡 {t.webdavTips}</strong></p>
-                  <ul className="list-disc pl-5 space-y-1">
-                    <li>{t.webdavTip1}</li>
-                    <li>{t.webdavTip2}</li>
-                    <li>{t.webdavTip3}</li>
-                  </ul>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">{t.serverUrl}</label>
-                  <input 
-                    name="url" 
-                    defaultValue={config.url} 
-                    placeholder="https://webdav.example.com" 
-                    required
-                    className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
+              <div className="p-4 border-b border-border">
+                <button 
+                  onClick={() => setIsWebDAVExpanded(!isWebDAVExpanded)}
+                  className="flex items-center justify-between w-full text-left font-medium text-sm hover:text-primary transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <RefreshCw className={cn("w-4 h-4", isSyncing && "animate-spin")} />
+                    {t.webdavConfig}
+                  </span>
+                  {isWebDAVExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
                 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">{t.username}</label>
-                    <input 
-                      name="username" 
-                      defaultValue={config.username} 
-                      className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">{t.password}</label>
-                    <input 
-                      name="password" 
-                      type="password"
-                      defaultValue={config.password} 
-                      className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">{t.directory}</label>
-                  <input 
-                    name="directory" 
-                    defaultValue={config.directory} 
-                    placeholder="/notes" 
-                    className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                  <p className="text-xs text-muted-foreground">{t.directoryHint}</p>
-                </div>
-
-                <div className="flex items-center gap-2 pt-2">
-                  <input 
-                    type="checkbox" 
-                    id="rememberPassword" 
-                    name="rememberPassword" 
-                    defaultChecked={config.rememberPassword ?? true} 
-                    className="rounded border-border text-primary focus:ring-primary w-4 h-4"
-                  />
-                  <label htmlFor="rememberPassword" className="text-sm font-medium cursor-pointer">{t.rememberPassword}</label>
-                </div>
-
-                <div className="flex items-center gap-2 pt-2">
-                  <input 
-                    type="checkbox" 
-                    id="useProxy" 
-                    name="useProxy" 
-                    defaultChecked={config.useProxy ?? true} 
-                    className="rounded border-border text-primary focus:ring-primary w-4 h-4"
-                  />
-                  <label htmlFor="useProxy" className="text-sm font-medium cursor-pointer">{t.useProxy}</label>
-                </div>
-
-                <div className="pt-4 flex flex-wrap gap-2">
-                  <button 
-                    type="button" 
-                    onClick={handleTestConnection}
-                    disabled={isTestingConnection}
-                    className="flex-1 px-4 py-2 text-sm font-medium bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                {isWebDAVExpanded && (
+                  <form 
+                    className="mt-4 space-y-4"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const formData = new FormData(e.currentTarget);
+                      let dir = formData.get('directory') as string || '/notes';
+                      if (!dir.startsWith('/')) {
+                        dir = '/' + dir;
+                      }
+                      saveConfig({
+                        url: formData.get('url') as string,
+                        username: formData.get('username') as string,
+                        password: formData.get('password') as string,
+                        directory: dir,
+                        rememberPassword: formData.get('rememberPassword') === 'on',
+                        useProxy: formData.get('useProxy') === 'on',
+                      });
+                    }}
                   >
-                    {isTestingConnection ? <RefreshCw className="w-4 h-4 animate-spin" /> : null}
-                    {t.testConnection}
-                  </button>
-                  <button 
-                    type="submit"
-                    className="flex-1 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-                  >
-                    {t.saveAndConnect}
-                  </button>
-                </div>
-              </form>
+                    <div className="bg-blue-500/10 text-blue-600 dark:text-blue-400 p-3 rounded-md text-sm border border-blue-500/20 space-y-2">
+                      <p><strong>💡 {t.webdavTips}</strong></p>
+                      <ul className="list-disc pl-5 space-y-1">
+                        <li>{t.webdavTip1}</li>
+                        <li>{t.webdavTip2}</li>
+                        <li>{t.webdavTip3}</li>
+                      </ul>
+                    </div>
 
-              <div className="p-4 border-t border-border space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">{t.serverUrl}</label>
+                      <input 
+                        name="url" 
+                        defaultValue={config.url} 
+                        placeholder="https://webdav.example.com" 
+                        required
+                        className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">{t.username}</label>
+                        <input 
+                          name="username" 
+                          defaultValue={config.username} 
+                          className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">{t.password}</label>
+                        <input 
+                          name="password" 
+                          type="password"
+                          defaultValue={config.password} 
+                          className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">{t.directory}</label>
+                      <input 
+                        name="directory" 
+                        defaultValue={config.directory} 
+                        placeholder="/notes" 
+                        className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                      <p className="text-xs text-muted-foreground">{t.directoryHint}</p>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-2">
+                      <input 
+                        type="checkbox" 
+                        id="rememberPassword" 
+                        name="rememberPassword" 
+                        defaultChecked={config.rememberPassword ?? true} 
+                        className="rounded border-border text-primary focus:ring-primary w-4 h-4"
+                      />
+                      <label htmlFor="rememberPassword" className="text-sm font-medium cursor-pointer">{t.rememberPassword}</label>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-2">
+                      <input 
+                        type="checkbox" 
+                        id="useProxy" 
+                        name="useProxy" 
+                        defaultChecked={config.useProxy ?? true} 
+                        className="rounded border-border text-primary focus:ring-primary w-4 h-4"
+                      />
+                      <label htmlFor="useProxy" className="text-sm font-medium cursor-pointer">{t.useProxy}</label>
+                    </div>
+
+                    <div className="pt-4 flex flex-wrap gap-2">
+                      <button 
+                        type="button" 
+                        onClick={handleTestConnection}
+                        disabled={isTestingConnection}
+                        className="flex-1 px-4 py-2 text-sm font-medium bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {isTestingConnection ? <RefreshCw className="w-4 h-4 animate-spin" /> : null}
+                        {t.testConnection}
+                      </button>
+                      <button 
+                        type="submit"
+                        className="flex-1 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                      >
+                        {t.saveAndConnect}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+
+              <div className="p-4 space-y-4">
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium flex items-center gap-2">
+                    <Settings className="w-4 h-4" />
+                    {t.generalSettings}
+                  </h3>
+                  
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="checkbox" 
+                      id="openLatestNote" 
+                      checked={openLatestNote} 
+                      onChange={(e) => setOpenLatestNote(e.target.checked)}
+                      className="rounded border-border text-primary focus:ring-primary w-4 h-4"
+                    />
+                    <label htmlFor="openLatestNote" className="text-sm font-medium cursor-pointer">{t.openLatestNote}</label>
+                  </div>
+                </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium flex items-center gap-2">
                     <Languages className="w-4 h-4" />
