@@ -133,8 +133,11 @@ export const ensureDirectory = async (dir: string) => {
     if (!exists) {
       await client.createDirectory(dir);
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Failed to ensure directory:", error);
+    if (error.response && error.response.status === 403) {
+      throw new Error(`无法访问或创建目录 "${dir}"。请检查权限或目录路径是否正确。`);
+    }
     throw error;
   }
 };
@@ -166,10 +169,20 @@ export const testConnection = async (config: WebDAVConfig) => {
     // Extract more detailed error information if available
     let errorMsg = error.message;
     if (error.response) {
-      errorMsg = `HTTP ${error.response.status}: ${error.response.statusText}`;
+      const status = error.response.status;
+      errorMsg = `HTTP ${status}: ${error.response.statusText}`;
+      
+      if (status === 403) {
+        errorMsg = `HTTP 403 Forbidden: 访问被拒绝。请检查用户名/密码（应用密码）是否正确。如果是 Infini-Cloud，请确保 URL 以 /dav/ 结尾。`;
+      }
+      
       try {
         const text = await error.response.text();
-        if (text) errorMsg += ` - ${text.substring(0, 100)}`;
+        if (text && !text.includes('<!DOCTYPE html>')) {
+          errorMsg += ` - ${text.substring(0, 100)}`;
+        } else if (text && text.includes('<!DOCTYPE html>')) {
+          errorMsg += ` (服务器返回了 HTML 页面，可能是 URL 错误或被防火墙拦截)`;
+        }
       } catch (e) {
         // Ignore text parsing errors
       }

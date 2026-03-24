@@ -43,6 +43,11 @@ async function startServer() {
         headers.set('user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 WebDAV-Client/1.0');
       }
 
+      // 确保有 Accept 头，有些服务器可能需要
+      if (!headers.has('accept')) {
+        headers.set('accept', '*/*');
+      }
+
       // Log if authorization is present
       if (!headers.has('authorization')) {
         console.warn(`[Proxy] Warning: No authorization header found for ${targetUrl}`);
