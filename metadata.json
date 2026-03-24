@@ -1,0 +1,5 @@
+{
+  "name": "md速记",
+  "description": "A web-based Markdown temporary notes application with WebDAV sync support, ready for Vercel or Cloudflare Pages.",
+  "requestFramePermissions": []
+}
