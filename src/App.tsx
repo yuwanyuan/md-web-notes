@@ -140,7 +140,9 @@ const translations = {
     loading: '加载中',
     openLatestNote: '打开网页默认打开最新的一个笔记',
     generalSettings: '通用设置',
-    dataLossWarning: '为避免您的数据丢失请先配置 WebDAV 存储，所有数据本地保存，我们无法读取您的信息'
+    dataLossWarning: '为避免您的数据丢失请先配置 WebDAV 存储，所有数据本地保存，我们无法读取您的信息',
+    customProxyUrl: '自定义代理地址 (可选)',
+    customProxyUrlHint: '部署到静态网站时，可填写自定义的 CORS 代理地址'
   },
   en: {
     appName: 'mdQuick',
@@ -200,7 +202,9 @@ const translations = {
     loading: 'Loading',
     openLatestNote: 'Open the latest note by default',
     generalSettings: 'General Settings',
-    dataLossWarning: 'To avoid data loss, please configure WebDAV storage first. All data is saved locally, and we cannot read your information.'
+    dataLossWarning: 'To avoid data loss, please configure WebDAV storage first. All data is saved locally, and we cannot read your information.',
+    customProxyUrl: 'Custom Proxy URL (Optional)',
+    customProxyUrlHint: 'When deployed as a static site, you can provide a custom CORS proxy URL'
   }
 };
 
@@ -349,6 +353,7 @@ function AppContent() {
       directory: dir,
       rememberPassword: formData.get('rememberPassword') === 'on',
       useProxy: formData.get('useProxy') === 'on',
+      customProxyUrl: formData.get('customProxyUrl') as string,
     };
 
     setIsTestingConnection(true);
@@ -911,6 +916,7 @@ function AppContent() {
                         directory: dir,
                         rememberPassword: formData.get('rememberPassword') === 'on',
                         useProxy: formData.get('useProxy') === 'on',
+                        customProxyUrl: formData.get('customProxyUrl') as string,
                       });
                     }}
                   >
@@ -976,15 +982,32 @@ function AppContent() {
                       <label htmlFor="rememberPassword" className="text-sm font-medium cursor-pointer">{t.rememberPassword}</label>
                     </div>
 
-                    <div className="flex items-center gap-2 pt-2">
-                      <input 
-                        type="checkbox" 
-                        id="useProxy" 
-                        name="useProxy" 
-                        defaultChecked={config.useProxy ?? true} 
-                        className="rounded border-border text-primary focus:ring-primary w-4 h-4"
-                      />
-                      <label htmlFor="useProxy" className="text-sm font-medium cursor-pointer">{t.useProxy}</label>
+                    <div className="flex flex-col gap-2 pt-2">
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="checkbox" 
+                          id="useProxy" 
+                          name="useProxy" 
+                          defaultChecked={config.useProxy ?? true} 
+                          onChange={(e) => setConfig({...config, useProxy: e.target.checked})}
+                          className="rounded border-border text-primary focus:ring-primary w-4 h-4"
+                        />
+                        <label htmlFor="useProxy" className="text-sm font-medium cursor-pointer">{t.useProxy}</label>
+                      </div>
+                      
+                      {config.useProxy !== false && (
+                        <div className="pl-6 space-y-1">
+                          <label className="text-xs font-medium text-muted-foreground">{t.customProxyUrl}</label>
+                          <input 
+                            type="text" 
+                            name="customProxyUrl" 
+                            defaultValue={config.customProxyUrl || ''} 
+                            placeholder="https://your-worker.workers.dev/api/proxy"
+                            className="w-full px-3 py-1.5 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                          <p className="text-[10px] text-muted-foreground">{t.customProxyUrlHint}</p>
+                        </div>
+                      )}
                     </div>
 
                     <div className="pt-4 flex flex-wrap gap-2">

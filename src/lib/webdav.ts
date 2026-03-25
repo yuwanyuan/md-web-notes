@@ -7,6 +7,7 @@ export interface WebDAVConfig {
   directory: string;
   rememberPassword?: boolean;
   useProxy?: boolean;
+  customProxyUrl?: string;
 }
 
 let client: WebDAVClient | null = null;
@@ -49,7 +50,10 @@ const customFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   // Fix double slashes in the path (but preserve the protocol slashes like https://)
   targetUrl = targetUrl.replace(/([^:]\/)\/+/g, "$1");
   
-  const proxyUrl = `${window.location.origin}/api/proxy`;
+  let proxyUrl = `${window.location.origin}/api/proxy`;
+  if (currentConfig.customProxyUrl && currentConfig.customProxyUrl.trim() !== '') {
+    proxyUrl = currentConfig.customProxyUrl.trim();
+  }
   
   // Filter out forbidden headers that the browser might not allow setting via fetch
   const forbiddenHeaders = [
